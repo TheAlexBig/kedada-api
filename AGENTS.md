@@ -1,0 +1,305 @@
+# AGENTS.md
+
+This file is a quick orientation guide for coding agents working in this repo.
+Use it together with `README.md`; the README explains the product and examples,
+while this file focuses on how to navigate and change the code safely.
+
+## Repository Snapshot
+
+Kedada API is a Spring Boot REST backend for registering, searching, organizing,
+and measuring events in El Salvador.
+
+- Language/runtime: Java 25.
+- Framework: Spring Boot 4.0.0 with Spring Web MVC.
+- Build tool: Maven.
+- Database: PostgreSQL 17 locally, Flyway-managed schema.
+- Persistence: Spring Data JPA plus native SQL for event search and metrics.
+- API docs: springdoc-openapi at `/swagger-ui.html`.
+- Main package: `com.kedada.backend`.
+
+## How To Run
+
+Start PostgreSQL:
+
+```bash
+docker compose up -d
+```
+
+Run the app:
+
+```bash
+mvn spring-boot:run
+```
+
+Useful local URLs:
+
+- App: `http://localhost:8080`
+- Swagger UI: `http://localhost:8080/swagger-ui.html`
+- OpenAPI JSON: `http://localhost:8080/v3/api-docs`
+
+Verification commands:
+
+```bash
+mvn test
+mvn package
+```
+
+There are currently no dedicated test source files in the repo, so `mvn test`
+mostly verifies compilation and Spring/Maven wiring unless tests are added.
+
+## Configuration
+
+Primary config lives in `src/main/resources/application.yml`.
+
+- Active profile defaults to `local`.
+- Local datasource: `jdbc:postgresql://localhost:5432/kedada`.
+- Local credentials: `kedada` / `kedada`.
+- `spring.jpa.hibernate.ddl-auto=validate`; schema changes should be made with
+  Flyway migrations, not Hibernate auto-DDL.
+- `spring.jpa.open-in-view=false`; keep service methods transactional where lazy
+  relationships or persistence state matter.
+- `prod` expects `DATABASE_URL`, `DATABASE_USERNAME`, and `DATABASE_PASSWORD`.
+
+## Project Structure
+
+The code is organized by domain, and each domain follows the same layered shape:
+
+```text
+src/main/java/com/kedada/backend
+  KedadaBackendApplication.java
+  config/
+  common/
+    exception/
+    response/
+    validation/
+  category/
+    controller/
+    service/
+    repository/
+    entity/
+    dto/
+    mapper/
+  event/
+    controller/
+    service/
+    repository/
+    entity/
+    dto/
+    mapper/
+  metric/
+    controller/
+    service/
+    repository/
+    entity/
+    dto/
+  schedule/
+    controller/
+    service/
+    repository/
+    entity/
+    dto/
+    mapper/
+  url/
+    controller/
+    service/
+    repository/
+    entity/
+    dto/
+    mapper/
+```
+
+Layer responsibilities:
+
+- `controller`: REST endpoints, request validation annotations, HTTP status.
+- `service`: business rules, reference checks, transactions.
+- `repository`: JPA repositories and native SQL query implementations.
+- `entity`: JPA persistence model.
+- `dto`: public request/response contracts.
+- `mapper`: entity/DTO conversion.
+- `common`: shared error responses, exceptions, and validation helpers.
+
+## Domain Map
+
+### Categories
+
+Endpoint base: `/api/v1/categories`.
+
+Categories have `id`, `name`, `ownerId`, and `type` as a list/string array.
+Deletion is hard delete, but `CategoryService.delete` blocks deletion when any
+event references the category and returns a conflict through
+`BusinessConflictException`.
+
+### URLs
+
+Endpoint base: `/api/v1/urls`.
+
+URLs have `id`, `url`, `description`, `ownerId`, and `kind`. Deletion is hard
+delete, but `UrlService.delete` blocks deletion when an event references the URL
+as either `siteUrl` or `referenceUrl`.
+
+### Events
+
+Endpoint base: `/api/v1/events`.
+
+Events have title, description, priority, optional thumbnail UUID, optional
+price, optional site/reference URLs, required category, timestamps, soft-delete
+fields, and a PostgreSQL `tsvector` search column.
+
+Important event behavior:
+
+- Creates default `priority` to `1` when omitted.
+- Reads use `findActive`; soft-deleted events are treated as not found.
+- Deletes are soft deletes via `is_deleted` and `deleted_at`.
+- Search is implemented by `EventSearchRepositoryImpl` with native SQL.
+- Supported event sort fields are `createdAt`, `updatedAt`, `title`,
+  `priority`, and `price`. Unsupported sort fields become `400 Bad Request`.
+- Text search checks both Spanish and simple PostgreSQL dictionaries.
+- Date filters use `exists` against `schedules.start_date`.
+
+### Schedules
+
+Endpoint base: `/api/v1/schedules`.
+
+Schedules have `id`, nullable `eventId`, `startDate`, nullable `endDate`, and
+`ownerId`. A schedule may be global/unassociated because `event_id` is nullable.
+When an `eventId` is provided, `ScheduleService` verifies the event is active.
+
+Date ranges are validated in two places:
+
+- Bean validation with `@ValidDateRange`.
+- Database check constraint: `end_date is null or end_date > start_date`.
+
+### Metrics
+
+Endpoint base: `/api/v1/events/{eventId}/metrics`.
+
+Metrics are daily per event using composite key `(event_id, day)`.
+
+- `POST /api/v1/events/{id}/view?ownerId=...` increments views.
+- `POST /api/v1/events/{id}/share?ownerId=...` increments shares.
+- `GET /api/v1/events/{eventId}/metrics/daily` returns daily rows, newest first.
+- `GET /api/v1/events/{eventId}/metrics/summary` returns total views/shares.
+
+Metric increments use PostgreSQL `insert ... on conflict do update`, which is
+safe under concurrent requests.
+
+## Database And Migrations
+
+The initial schema is in:
+
+```text
+src/main/resources/db/migration/V1__create_initial_schema.sql
+```
+
+Key schema details:
+
+- `pgcrypto` is enabled for `gen_random_uuid()`.
+- `events.type` is a foreign key to `categories(id)`.
+- `events.site_url` and `events.reference_url` are foreign keys to `urls(id)`.
+- `schedules.event_id` is nullable and references `events(id)`.
+- `event_metric_daily` uses primary key `(event_id, day)`.
+- `events.search_vector` is maintained by a trigger.
+- `events.updated_at` is maintained by a trigger.
+
+When changing persistence:
+
+- Add a new Flyway migration instead of editing applied migrations once the
+  schema may have been used by others.
+- Keep JPA column names aligned with SQL names.
+- Remember `ddl-auto=validate`; mismatched entities and schema will fail startup.
+
+## Error Handling
+
+Global error handling lives in `common/exception/GlobalExceptionHandler.java`.
+
+Standard behavior:
+
+- Bean validation errors: `400` with field-level details.
+- Constraint violations, bad request bodies, type mismatches, illegal arguments,
+  and invalid pageable sort properties: `400`.
+- `ResourceNotFoundException`: `404`.
+- `BusinessConflictException`: `409`.
+- Unexpected exceptions: `500` with generic message.
+
+Error bodies use `ErrorResponse` and field errors use `FieldErrorResponse`.
+
+## Validation Patterns
+
+DTOs use Jakarta Bean Validation annotations.
+
+Examples:
+
+- `EventCreateRequest.title`: required, max 100.
+- `EventCreateRequest.categoryId`: required.
+- `EventCreateRequest.priority`: minimum 1.
+- `EventCreateRequest.price`: minimum 0.00.
+- `UrlCreateRequest.url`: required and valid URL.
+- `ScheduleCreateRequest`: class-level `@ValidDateRange`.
+
+For new endpoints, validate at DTO/controller boundaries and keep business
+reference validation in services.
+
+## Coding Conventions In This Repo
+
+- Prefer constructor injection.
+- Keep controllers thin and services transactional.
+- Use records for request/response DTOs.
+- Use mapper classes for entity/DTO conversion instead of conversion logic in
+  controllers.
+- Put domain-specific changes under the matching domain package.
+- Use `ResourceNotFoundException` for missing records.
+- Use `BusinessConflictException` for valid requests blocked by current state.
+- Preserve soft delete semantics for events.
+- Avoid adding authentication assumptions yet; `ownerId` is currently passed by
+  request body or query param and is intended to become JWT-derived later.
+
+## Common Change Paths
+
+Adding a simple field:
+
+1. Add a Flyway migration for the database column.
+2. Update the JPA entity.
+3. Update request/response DTOs if the field is public.
+4. Update mapper logic.
+5. Update service create/update logic.
+6. Add or adjust validation annotations.
+7. Run `mvn test`.
+
+Adding an endpoint:
+
+1. Add the controller method under the relevant domain.
+2. Keep transaction and business logic in the service.
+3. Add repository methods only when persistence access is needed.
+4. Return DTOs, not entities.
+5. Make sure errors flow through the existing exception handler.
+
+Changing event search:
+
+1. Start in `event/repository/EventSearchRepositoryImpl.java`.
+2. Keep native SQL parameterized.
+3. Add new sortable fields to `SORT_COLUMNS`.
+4. Check count query and content query stay semantically aligned.
+5. Consider indexes or generated data in a Flyway migration for new filters.
+
+## Known Product/Architecture Decisions
+
+- `Event.thumbnail` is a bare UUID because there is no files table yet.
+- `owner_id` is a soft reference UUID, not a foreign key, to support future
+  authentication/JWT integration.
+- `Schedule.event_id` is nullable to support global or not-yet-associated
+  schedules.
+- Only events currently use soft delete.
+- Text search favors PostgreSQL full-text search, including Spanish support.
+
+## Watch Outs
+
+- `EventUpdateRequest` treats `null` as "leave unchanged", so there is currently
+  no way to clear nullable fields through update without changing the API shape.
+- Category and URL deletes are hard deletes but blocked when referenced.
+- Metrics use `LocalDate.now()` with the JVM default timezone. Be careful if
+  timezone-specific metric days become a product requirement.
+- The local `test` profile points at PostgreSQL on `localhost:5432/kedada_test`;
+  it is not an embedded database.
+- Existing migrations and README text are Spanish-oriented; keep user-facing API
+  examples consistent with the project language unless asked otherwise.
+
