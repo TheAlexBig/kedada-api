@@ -149,6 +149,16 @@ Buscar eventos:
 ```text
 GET /api/v1/events?q=festival&categoryId={uuid}&minPrice=0&maxPrice=25&priority=1&fromDate=2026-06-01T00:00:00-06:00&page=0&size=20&sort=createdAt,desc
 ```
+```
+docker build -t kedada-api:local .
+docker compose up -d postgres
+docker run --rm -p 8080:8080 \
+  --network kedada-api_default \
+  -e SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/kedada \
+  -e SPRING_DATASOURCE_USERNAME=kedada \
+  -e SPRING_DATASOURCE_PASSWORD=kedada \
+  kedada-api:local
+```
 
 ## Pendientes recomendados
 
