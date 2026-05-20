@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: kedada-postgres
+    environment:
+      POSTGRES_DB: kedada
+      POSTGRES_USER: kedada
+      POSTGRES_PASSWORD: kedada
+    ports:
+      - "5432:5432"
+    volumes:
+      - kedada-postgres17-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kedada -d kedada"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  kedada-postgres17-data:
