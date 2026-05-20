@@ -9,6 +9,7 @@ import jakarta.persistence.Table;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Entity
@@ -28,6 +29,12 @@ public class Category {
     @Column(name = "type", columnDefinition = "varchar[]")
     @JdbcTypeCode(SqlTypes.ARRAY)
     private String[] type;
+
+    @Column(name = "is_deleted", nullable = false)
+    private boolean deleted;
+
+    @Column(name = "deleted_at")
+    private OffsetDateTime deletedAt;
 
     public UUID getId() {
         return id;
@@ -55,5 +62,21 @@ public class Category {
 
     public void setType(String[] type) {
         this.type = type;
+    }
+
+    public boolean isDeleted() {
+        return deleted;
+    }
+
+    public void setDeleted(boolean deleted) {
+        this.deleted = deleted;
+    }
+
+    public OffsetDateTime getDeletedAt() {
+        return deletedAt;
+    }
+
+    public void setDeletedAt(OffsetDateTime deletedAt) {
+        this.deletedAt = deletedAt;
     }
 }

@@ -7,6 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Entity
@@ -28,6 +29,12 @@ public class Url {
 
     @Column(nullable = false, length = 20)
     private String kind;
+
+    @Column(name = "is_deleted", nullable = false)
+    private boolean deleted;
+
+    @Column(name = "deleted_at")
+    private OffsetDateTime deletedAt;
 
     public UUID getId() {
         return id;
@@ -63,5 +70,21 @@ public class Url {
 
     public void setKind(String kind) {
         this.kind = kind;
+    }
+
+    public boolean isDeleted() {
+        return deleted;
+    }
+
+    public void setDeleted(boolean deleted) {
+        this.deleted = deleted;
+    }
+
+    public OffsetDateTime getDeletedAt() {
+        return deletedAt;
+    }
+
+    public void setDeletedAt(OffsetDateTime deletedAt) {
+        this.deletedAt = deletedAt;
     }
 }

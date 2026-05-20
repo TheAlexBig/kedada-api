@@ -23,7 +23,8 @@ La estructura sigue capas por dominio:
 - `Schedule` en el modelo original no tenia `event_id`. Se agrego `event_id uuid references events(id)` nullable para permitir horarios globales o aun no asociados, sin bloquear la evolucion del modelo.
 - `EventMetricDaily` usa llave compuesta `(event_id, day)` para metricas diarias por evento.
 - Los incrementos de vistas y compartidos usan `insert ... on conflict do update`, seguro frente a concurrencia en PostgreSQL.
-- Los eventos usan soft delete con `is_deleted` y `deleted_at`; los listados normales no retornan eliminados.
+- Los eventos, categorias y URLs usan soft delete con `is_deleted` y `deleted_at`; los listados normales no retornan eliminados.
+- No se permite eliminar logicamente una categoria o URL mientras exista un evento activo que la referencie.
 - La busqueda de texto usa `search_vector` con trigger e indice GIN.
 
 ## Arbol principal
@@ -153,6 +154,5 @@ GET /api/v1/events?q=festival&categoryId={uuid}&minPrice=0&maxPrice=25&priority=
 ## Pendientes recomendados
 
 - Agregar autenticacion y resolver `owner_id` desde JWT en vez de request/query param.
-- Definir ciclo de vida de `Category` y `Url` si se requiere soft delete tambien para esos catalogos.
 - Agregar pruebas de integracion con Testcontainers para PostgreSQL y Flyway.
 - Afinar ranking de busqueda (`ts_rank`) cuando exista UX de resultados.
