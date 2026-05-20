@@ -13,6 +13,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Service
@@ -40,7 +41,7 @@ public class UrlService {
 
     @Transactional(readOnly = true)
     public Page<UrlResponse> list(Pageable pageable) {
-        return repository.findAll(pageable).map(mapper::toResponse);
+        return repository.findByDeletedFalse(pageable).map(mapper::toResponse);
     }
 
     @Transactional
@@ -53,13 +54,14 @@ public class UrlService {
     @Transactional
     public void delete(UUID id) {
         Url url = find(id);
-        if (eventRepository.existsBySiteUrl_IdOrReferenceUrl_Id(id, id)) {
-            throw new BusinessConflictException("Url is referenced by at least one event");
+        if (eventRepository.existsActiveByUrlId(id)) {
+            throw new BusinessConflictException("Url is referenced by at least one active event");
         }
-        repository.delete(url);
+        url.setDeleted(true);
+        url.setDeletedAt(OffsetDateTime.now());
     }
 
     public Url find(UUID id) {
-        return repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Url not found: " + id));
+        return repository.findByIdAndDeletedFalse(id).orElseThrow(() -> new ResourceNotFoundException("Url not found: " + id));
     }
 }

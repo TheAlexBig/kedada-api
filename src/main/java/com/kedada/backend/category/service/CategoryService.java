@@ -13,6 +13,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Service
@@ -40,7 +41,7 @@ public class CategoryService {
 
     @Transactional(readOnly = true)
     public Page<CategoryResponse> list(Pageable pageable) {
-        return repository.findAll(pageable).map(mapper::toResponse);
+        return repository.findByDeletedFalse(pageable).map(mapper::toResponse);
     }
 
     @Transactional
@@ -53,13 +54,14 @@ public class CategoryService {
     @Transactional
     public void delete(UUID id) {
         Category category = find(id);
-        if (eventRepository.existsByType_Id(id)) {
-            throw new BusinessConflictException("Category is referenced by at least one event");
+        if (eventRepository.existsActiveByCategoryId(id)) {
+            throw new BusinessConflictException("Category is referenced by at least one active event");
         }
-        repository.delete(category);
+        category.setDeleted(true);
+        category.setDeletedAt(OffsetDateTime.now());
     }
 
     public Category find(UUID id) {
-        return repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Category not found: " + id));
+        return repository.findByIdAndDeletedFalse(id).orElseThrow(() -> new ResourceNotFoundException("Category not found: " + id));
     }
 }
