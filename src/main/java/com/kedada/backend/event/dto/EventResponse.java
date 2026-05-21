@@ -14,6 +14,7 @@ public record EventResponse(
         UUID siteUrlId,
         UUID referenceUrlId,
         UUID categoryId,
+        UUID ownerId,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt
 ) {

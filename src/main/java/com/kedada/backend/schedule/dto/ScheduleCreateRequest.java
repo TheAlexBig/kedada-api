@@ -11,7 +11,6 @@ import java.util.UUID;
 public record ScheduleCreateRequest(
         UUID eventId,
         @NotNull OffsetDateTime startDate,
-        OffsetDateTime endDate,
-        @NotNull UUID ownerId
+        OffsetDateTime endDate
 ) implements DateRangeProvider {
 }

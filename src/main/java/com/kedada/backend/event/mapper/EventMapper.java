@@ -22,6 +22,7 @@ public class EventMapper {
                 siteUrlId,
                 referenceUrlId,
                 event.getType().getId(),
+                event.getOwnerId(),
                 event.getCreatedAt(),
                 event.getUpdatedAt()
         );

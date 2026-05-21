@@ -1,5 +1,6 @@
 package com.kedada.backend.event.controller;
 
+import com.kedada.backend.auth.security.AuthenticatedUser;
 import com.kedada.backend.event.dto.EventCreateRequest;
 import com.kedada.backend.event.dto.EventResponse;
 import com.kedada.backend.event.dto.EventUpdateRequest;
@@ -15,6 +16,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -44,8 +46,8 @@ public class EventController {
     }
 
     @PostMapping
-    ResponseEntity<EventResponse> create(@Valid @RequestBody EventCreateRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(eventService.create(request));
+    ResponseEntity<EventResponse> create(@AuthenticationPrincipal AuthenticatedUser user, @Valid @RequestBody EventCreateRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(eventService.create(user.id(), request));
     }
 
     @GetMapping("/{id}")
@@ -68,13 +70,13 @@ public class EventController {
     }
 
     @PutMapping("/{id}")
-    EventResponse update(@PathVariable UUID id, @Valid @RequestBody EventUpdateRequest request) {
-        return eventService.update(id, request);
+    EventResponse update(@AuthenticationPrincipal AuthenticatedUser user, @PathVariable UUID id, @Valid @RequestBody EventUpdateRequest request) {
+        return eventService.update(user.id(), id, request);
     }
 
     @DeleteMapping("/{id}")
-    ResponseEntity<Void> delete(@PathVariable UUID id) {
-        eventService.softDelete(id);
+    ResponseEntity<Void> delete(@AuthenticationPrincipal AuthenticatedUser user, @PathVariable UUID id) {
+        eventService.softDelete(user.id(), id);
         return ResponseEntity.noContent().build();
     }
 

@@ -13,6 +13,11 @@ springdoc:
   api-docs:
     path: /v3/api-docs
 
+kedada:
+  security:
+    jwt:
+      expiration-seconds: 86400
+
 ---
 spring:
   config:
@@ -31,6 +36,11 @@ spring:
         format_sql: true
   flyway:
     enabled: true
+
+kedada:
+  security:
+    jwt:
+      secret: local-development-secret-change-before-deploying
 
 logging:
   level:
@@ -52,6 +62,11 @@ spring:
   flyway:
     enabled: true
 
+kedada:
+  security:
+    jwt:
+      secret: test-development-secret-change-before-deploying
+
 ---
 spring:
   config:
@@ -67,3 +82,8 @@ spring:
     open-in-view: false
   flyway:
     enabled: true
+
+kedada:
+  security:
+    jwt:
+      secret: ${JWT_SECRET}

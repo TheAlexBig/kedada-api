@@ -10,6 +10,7 @@ import com.kedada.backend.url.mapper.UrlMapper;
 import com.kedada.backend.url.repository.UrlRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,8 +31,10 @@ public class UrlService {
     }
 
     @Transactional
-    public UrlResponse create(UrlCreateRequest request) {
-        return mapper.toResponse(repository.save(mapper.toEntity(request)));
+    public UrlResponse create(UUID ownerId, UrlCreateRequest request) {
+        Url url = mapper.toEntity(request);
+        url.setOwnerId(ownerId);
+        return mapper.toResponse(repository.save(url));
     }
 
     @Transactional(readOnly = true)
@@ -45,15 +48,17 @@ public class UrlService {
     }
 
     @Transactional
-    public UrlResponse update(UUID id, UrlCreateRequest request) {
+    public UrlResponse update(UUID ownerId, UUID id, UrlCreateRequest request) {
         Url url = find(id);
+        assertOwner(url.getOwnerId(), ownerId);
         mapper.apply(url, request);
         return mapper.toResponse(url);
     }
 
     @Transactional
-    public void delete(UUID id) {
+    public void delete(UUID ownerId, UUID id) {
         Url url = find(id);
+        assertOwner(url.getOwnerId(), ownerId);
         if (eventRepository.existsActiveByUrlId(id)) {
             throw new BusinessConflictException("Url is referenced by at least one active event");
         }
@@ -63,5 +68,17 @@ public class UrlService {
 
     public Url find(UUID id) {
         return repository.findByIdAndDeletedFalse(id).orElseThrow(() -> new ResourceNotFoundException("Url not found: " + id));
+    }
+
+    public Url findOwned(UUID ownerId, UUID id) {
+        Url url = find(id);
+        assertOwner(url.getOwnerId(), ownerId);
+        return url;
+    }
+
+    private void assertOwner(UUID actualOwnerId, UUID expectedOwnerId) {
+        if (!actualOwnerId.equals(expectedOwnerId)) {
+            throw new AccessDeniedException("You do not own this URL");
+        }
     }
 }

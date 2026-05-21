@@ -50,6 +50,9 @@ public class Event {
     @JoinColumn(name = "type", nullable = false)
     private Category type;
 
+    @Column(name = "owner_id", nullable = false)
+    private UUID ownerId;
+
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private OffsetDateTime createdAt;
 
@@ -128,6 +131,14 @@ public class Event {
 
     public void setType(Category type) {
         this.type = type;
+    }
+
+    public UUID getOwnerId() {
+        return ownerId;
+    }
+
+    public void setOwnerId(UUID ownerId) {
+        this.ownerId = ownerId;
     }
 
     public OffsetDateTime getCreatedAt() {

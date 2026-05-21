@@ -19,7 +19,6 @@ public class CategoryMapper {
 
     public void apply(Category category, CategoryCreateRequest request) {
         category.setName(request.name());
-        category.setOwnerId(request.ownerId());
         category.setType(request.type() == null ? null : request.type().toArray(String[]::new));
     }
 

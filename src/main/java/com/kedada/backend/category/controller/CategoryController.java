@@ -1,5 +1,6 @@
 package com.kedada.backend.category.controller;
 
+import com.kedada.backend.auth.security.AuthenticatedUser;
 import com.kedada.backend.category.dto.CategoryCreateRequest;
 import com.kedada.backend.category.dto.CategoryResponse;
 import com.kedada.backend.category.service.CategoryService;
@@ -10,6 +11,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -32,8 +34,8 @@ public class CategoryController {
     }
 
     @PostMapping
-    ResponseEntity<CategoryResponse> create(@Valid @RequestBody CategoryCreateRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(service.create(request));
+    ResponseEntity<CategoryResponse> create(@AuthenticationPrincipal AuthenticatedUser user, @Valid @RequestBody CategoryCreateRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(service.create(user.id(), request));
     }
 
     @GetMapping
@@ -47,13 +49,13 @@ public class CategoryController {
     }
 
     @PutMapping("/{id}")
-    CategoryResponse update(@PathVariable UUID id, @Valid @RequestBody CategoryCreateRequest request) {
-        return service.update(id, request);
+    CategoryResponse update(@AuthenticationPrincipal AuthenticatedUser user, @PathVariable UUID id, @Valid @RequestBody CategoryCreateRequest request) {
+        return service.update(user.id(), id, request);
     }
 
     @DeleteMapping("/{id}")
-    ResponseEntity<Void> delete(@PathVariable UUID id) {
-        service.delete(id);
+    ResponseEntity<Void> delete(@AuthenticationPrincipal AuthenticatedUser user, @PathVariable UUID id) {
+        service.delete(user.id(), id);
         return ResponseEntity.noContent().build();
     }
 }

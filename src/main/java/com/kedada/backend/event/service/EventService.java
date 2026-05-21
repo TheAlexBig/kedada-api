@@ -13,6 +13,7 @@ import com.kedada.backend.url.entity.Url;
 import com.kedada.backend.url.service.UrlService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,7 +37,7 @@ public class EventService {
     }
 
     @Transactional
-    public EventResponse create(EventCreateRequest request) {
+    public EventResponse create(UUID ownerId, EventCreateRequest request) {
         Event event = new Event();
         event.setTitle(request.title());
         event.setDescription(request.description());
@@ -44,8 +45,9 @@ public class EventService {
         event.setThumbnail(request.thumbnail());
         event.setPrice(request.price());
         event.setType(categoryService.find(request.categoryId()));
-        event.setSiteUrl(resolveUrl(request.siteUrlId()));
-        event.setReferenceUrl(resolveUrl(request.referenceUrlId()));
+        event.setSiteUrl(resolveUrl(ownerId, request.siteUrlId()));
+        event.setReferenceUrl(resolveUrl(ownerId, request.referenceUrlId()));
+        event.setOwnerId(ownerId);
         return mapper.toResponse(repository.save(event));
     }
 
@@ -62,8 +64,9 @@ public class EventService {
     }
 
     @Transactional
-    public EventResponse update(UUID id, EventUpdateRequest request) {
+    public EventResponse update(UUID ownerId, UUID id, EventUpdateRequest request) {
         Event event = findActive(id);
+        assertOwner(event.getOwnerId(), ownerId);
         if (request.title() != null) {
             event.setTitle(request.title());
         }
@@ -84,17 +87,18 @@ public class EventService {
             event.setType(category);
         }
         if (request.siteUrlId() != null) {
-            event.setSiteUrl(resolveUrl(request.siteUrlId()));
+            event.setSiteUrl(resolveUrl(ownerId, request.siteUrlId()));
         }
         if (request.referenceUrlId() != null) {
-            event.setReferenceUrl(resolveUrl(request.referenceUrlId()));
+            event.setReferenceUrl(resolveUrl(ownerId, request.referenceUrlId()));
         }
         return mapper.toResponse(event);
     }
 
     @Transactional
-    public void softDelete(UUID id) {
+    public void softDelete(UUID ownerId, UUID id) {
         Event event = findActive(id);
+        assertOwner(event.getOwnerId(), ownerId);
         event.setDeleted(true);
         event.setDeletedAt(OffsetDateTime.now());
     }
@@ -105,11 +109,23 @@ public class EventService {
                 .orElseThrow(() -> new ResourceNotFoundException("Event not found: " + id));
     }
 
-    private Url resolveUrl(UUID id) {
-        return id == null ? null : urlService.find(id);
+    public Event findOwnedActive(UUID ownerId, UUID id) {
+        Event event = findActive(id);
+        assertOwner(event.getOwnerId(), ownerId);
+        return event;
+    }
+
+    private Url resolveUrl(UUID ownerId, UUID id) {
+        return id == null ? null : urlService.findOwned(ownerId, id);
     }
 
     private String blankToNull(String value) {
         return value == null || value.isBlank() ? null : value;
+    }
+
+    private void assertOwner(UUID actualOwnerId, UUID expectedOwnerId) {
+        if (!actualOwnerId.equals(expectedOwnerId)) {
+            throw new AccessDeniedException("You do not own this event");
+        }
     }
 }

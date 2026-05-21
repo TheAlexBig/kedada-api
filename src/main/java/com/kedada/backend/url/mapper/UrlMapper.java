@@ -17,7 +17,6 @@ public class UrlMapper {
     public void apply(Url url, UrlCreateRequest request) {
         url.setUrl(request.url());
         url.setDescription(request.description());
-        url.setOwnerId(request.ownerId());
         url.setKind(request.kind());
     }
 

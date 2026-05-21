@@ -10,6 +10,7 @@ import com.kedada.backend.schedule.mapper.ScheduleMapper;
 import com.kedada.backend.schedule.repository.ScheduleRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,9 +30,9 @@ public class ScheduleService {
     }
 
     @Transactional
-    public ScheduleResponse create(ScheduleCreateRequest request) {
+    public ScheduleResponse create(UUID ownerId, ScheduleCreateRequest request) {
         Schedule schedule = new Schedule();
-        apply(schedule, request);
+        apply(schedule, ownerId, request);
         return mapper.toResponse(repository.save(schedule));
     }
 
@@ -46,26 +47,35 @@ public class ScheduleService {
     }
 
     @Transactional
-    public ScheduleResponse update(UUID id, ScheduleCreateRequest request) {
+    public ScheduleResponse update(UUID ownerId, UUID id, ScheduleCreateRequest request) {
         Schedule schedule = find(id);
-        apply(schedule, request);
+        assertOwner(schedule.getOwnerId(), ownerId);
+        apply(schedule, ownerId, request);
         return mapper.toResponse(schedule);
     }
 
     @Transactional
-    public void delete(UUID id) {
-        repository.delete(find(id));
+    public void delete(UUID ownerId, UUID id) {
+        Schedule schedule = find(id);
+        assertOwner(schedule.getOwnerId(), ownerId);
+        repository.delete(schedule);
     }
 
-    private void apply(Schedule schedule, ScheduleCreateRequest request) {
-        Event event = request.eventId() == null ? null : eventService.findActive(request.eventId());
+    private void apply(Schedule schedule, UUID ownerId, ScheduleCreateRequest request) {
+        Event event = request.eventId() == null ? null : eventService.findOwnedActive(ownerId, request.eventId());
         schedule.setEvent(event);
         schedule.setStartDate(request.startDate());
         schedule.setEndDate(request.endDate());
-        schedule.setOwnerId(request.ownerId());
+        schedule.setOwnerId(ownerId);
     }
 
     private Schedule find(UUID id) {
         return repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Schedule not found: " + id));
+    }
+
+    private void assertOwner(UUID actualOwnerId, UUID expectedOwnerId) {
+        if (!actualOwnerId.equals(expectedOwnerId)) {
+            throw new AccessDeniedException("You do not own this schedule");
+        }
     }
 }

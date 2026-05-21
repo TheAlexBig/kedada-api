@@ -14,6 +14,7 @@ and measuring events in El Salvador.
 - Build tool: Maven.
 - Database: PostgreSQL 17 locally, Flyway-managed schema.
 - Persistence: Spring Data JPA plus native SQL for event search and metrics.
+- Auth: Spring Security with stateless Bearer JWT.
 - API docs: springdoc-openapi at `/swagger-ui.html`.
 - Main package: `com.kedada.backend`.
 
@@ -58,7 +59,10 @@ Primary config lives in `src/main/resources/application.yml`.
   Flyway migrations, not Hibernate auto-DDL.
 - `spring.jpa.open-in-view=false`; keep service methods transactional where lazy
   relationships or persistence state matter.
-- `prod` expects `DATABASE_URL`, `DATABASE_USERNAME`, and `DATABASE_PASSWORD`.
+- JWT settings live under `kedada.security.jwt`; local/test have development
+  secrets, while `prod` expects `JWT_SECRET`.
+- `prod` expects `DATABASE_URL`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`, and
+  `JWT_SECRET`.
 
 ## Project Structure
 
@@ -72,6 +76,13 @@ src/main/java/com/kedada/backend
     exception/
     response/
     validation/
+  auth/
+    controller/
+    service/
+    repository/
+    entity/
+    dto/
+    security/
   category/
     controller/
     service/
@@ -120,22 +131,40 @@ Layer responsibilities:
 
 ## Domain Map
 
+### Auth
+
+Endpoint base: `/api/v1/auth`.
+
+Users are stored in the `users` table with `email`, `password_hash`, `name`,
+and `role`. Passwords are encoded with BCrypt. Auth is stateless: register or
+login returns a Bearer JWT, and protected endpoints read the authenticated user
+from `@AuthenticationPrincipal AuthenticatedUser`.
+
+- `POST /api/v1/auth/register` creates a user and returns a token.
+- `POST /api/v1/auth/login` returns a token for valid credentials.
+- `GET /api/v1/**`, Swagger/OpenAPI, auth endpoints, and event view/share
+  tracking remain public.
+- Other mutating endpoints require `Authorization: Bearer <token>`.
+
 ### Categories
 
 Endpoint base: `/api/v1/categories`.
 
 Categories have `id`, `name`, `ownerId`, and `type` as a list/string array.
-Deletion is hard delete, but `CategoryService.delete` blocks deletion when any
-event references the category and returns a conflict through
-`BusinessConflictException`.
+Creates assign `ownerId` from the authenticated user. Updates and deletes require
+resource ownership. Deletion is soft delete, but `CategoryService.delete` blocks
+deletion when any active event references the category and returns a conflict
+through `BusinessConflictException`.
 
 ### URLs
 
 Endpoint base: `/api/v1/urls`.
 
 URLs have `id`, `url`, `description`, `ownerId`, and `kind`. Deletion is hard
-delete, but `UrlService.delete` blocks deletion when an event references the URL
-as either `siteUrl` or `referenceUrl`.
+delete in the API contract but implemented as soft delete. Creates assign
+`ownerId` from the authenticated user. Updates and deletes require ownership.
+`UrlService.delete` blocks deletion when an active event references the URL as
+either `siteUrl` or `referenceUrl`.
 
 ### Events
 
@@ -143,11 +172,15 @@ Endpoint base: `/api/v1/events`.
 
 Events have title, description, priority, optional thumbnail UUID, optional
 price, optional site/reference URLs, required category, timestamps, soft-delete
-fields, and a PostgreSQL `tsvector` search column.
+fields, `ownerId`, and a PostgreSQL `tsvector` search column.
 
 Important event behavior:
 
 - Creates default `priority` to `1` when omitted.
+- Creates assign `ownerId` from the authenticated user.
+- Create/update only allow categories and URLs owned by the same authenticated
+  user.
+- Updates and deletes require event ownership.
 - Reads use `findActive`; soft-deleted events are treated as not found.
 - Deletes are soft deletes via `is_deleted` and `deleted_at`.
 - Search is implemented by `EventSearchRepositoryImpl` with native SQL.
@@ -162,7 +195,9 @@ Endpoint base: `/api/v1/schedules`.
 
 Schedules have `id`, nullable `eventId`, `startDate`, nullable `endDate`, and
 `ownerId`. A schedule may be global/unassociated because `event_id` is nullable.
-When an `eventId` is provided, `ScheduleService` verifies the event is active.
+Creates assign `ownerId` from the authenticated user. Updates and deletes require
+ownership. When an `eventId` is provided, `ScheduleService` verifies the event is
+active and owned by the authenticated user.
 
 Date ranges are validated in two places:
 
@@ -194,6 +229,9 @@ src/main/resources/db/migration/V1__create_initial_schema.sql
 Key schema details:
 
 - `pgcrypto` is enabled for `gen_random_uuid()`.
+- `users` stores authenticated users.
+- `events.owner_id`, `categories.owner_id`, `urls.owner_id`, and
+  `schedules.owner_id` track resource ownership.
 - `events.type` is a foreign key to `categories(id)`.
 - `events.site_url` and `events.reference_url` are foreign keys to `urls(id)`.
 - `schedules.event_id` is nullable and references `events(id)`.
@@ -219,6 +257,8 @@ Standard behavior:
   and invalid pageable sort properties: `400`.
 - `ResourceNotFoundException`: `404`.
 - `BusinessConflictException`: `409`.
+- Authentication failures: `401`.
+- Ownership/authorization failures: `403`.
 - Unexpected exceptions: `500` with generic message.
 
 Error bodies use `ErrorResponse` and field errors use `FieldErrorResponse`.
@@ -235,6 +275,7 @@ Examples:
 - `EventCreateRequest.price`: minimum 0.00.
 - `UrlCreateRequest.url`: required and valid URL.
 - `ScheduleCreateRequest`: class-level `@ValidDateRange`.
+- Auth request DTOs validate email, password length, and user name.
 
 For new endpoints, validate at DTO/controller boundaries and keep business
 reference validation in services.
@@ -249,9 +290,11 @@ reference validation in services.
 - Put domain-specific changes under the matching domain package.
 - Use `ResourceNotFoundException` for missing records.
 - Use `BusinessConflictException` for valid requests blocked by current state.
+- Use `AccessDeniedException` for authenticated users trying to mutate resources
+  they do not own.
 - Preserve soft delete semantics for events.
-- Avoid adding authentication assumptions yet; `ownerId` is currently passed by
-  request body or query param and is intended to become JWT-derived later.
+- Do not trust client-provided `ownerId` for protected writes; derive ownership
+  from `AuthenticatedUser`.
 
 ## Common Change Paths
 
@@ -273,6 +316,14 @@ Adding an endpoint:
 4. Return DTOs, not entities.
 5. Make sure errors flow through the existing exception handler.
 
+Changing protected writes:
+
+1. Keep `GET` endpoints public unless the product requirement changes.
+2. Add `@AuthenticationPrincipal AuthenticatedUser user` to mutating controller
+   methods.
+3. Pass `user.id()` into the service and enforce ownership there.
+4. Keep JWT/security mechanics under `auth/security`.
+
 Changing event search:
 
 1. Start in `event/repository/EventSearchRepositoryImpl.java`.
@@ -284,22 +335,24 @@ Changing event search:
 ## Known Product/Architecture Decisions
 
 - `Event.thumbnail` is a bare UUID because there is no files table yet.
-- `owner_id` is a soft reference UUID, not a foreign key, to support future
-  authentication/JWT integration.
+- `owner_id` fields are soft references to `users(id)`, not foreign keys yet.
 - `Schedule.event_id` is nullable to support global or not-yet-associated
   schedules.
-- Only events currently use soft delete.
+- Events, categories, and URLs use soft delete.
 - Text search favors PostgreSQL full-text search, including Spanish support.
 
 ## Watch Outs
 
 - `EventUpdateRequest` treats `null` as "leave unchanged", so there is currently
   no way to clear nullable fields through update without changing the API shape.
-- Category and URL deletes are hard deletes but blocked when referenced.
+- Category and URL deletes are soft deletes but blocked when referenced by
+  active events.
 - Metrics use `LocalDate.now()` with the JVM default timezone. Be careful if
   timezone-specific metric days become a product requirement.
 - The local `test` profile points at PostgreSQL on `localhost:5432/kedada_test`;
   it is not an embedded database.
+- This workspace currently has JDK 21, while the project targets Java 25. Use a
+  JDK 25 for normal verification, or `mvn test -Djava.version=21` only as a
+  temporary compile smoke test.
 - Existing migrations and README text are Spanish-oriented; keep user-facing API
   examples consistent with the project language unless asked otherwise.
-
