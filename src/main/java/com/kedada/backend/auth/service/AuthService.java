@@ -52,6 +52,13 @@ public class AuthService {
         return toAuthResponse(user);
     }
 
+    @Transactional(readOnly = true)
+    public AuthResponse currentUser(AuthenticatedUser authenticatedUser) {
+        AppUser user = repository.findById(authenticatedUser.id())
+                .orElseThrow(() -> new BadCredentialsException("Invalid token"));
+        return toAuthResponse(user);
+    }
+
     private AuthResponse toAuthResponse(AppUser user) {
         AuthenticatedUser authenticatedUser = new AuthenticatedUser(
                 user.getId(),
@@ -59,6 +66,10 @@ public class AuthService {
                 user.getName(),
                 user.getRole()
         );
-        return new AuthResponse("Bearer", jwtService.createToken(authenticatedUser), user.getId(), user.getEmail(), user.getName());
+        return toAuthResponse(authenticatedUser);
+    }
+
+    private AuthResponse toAuthResponse(AuthenticatedUser user) {
+        return new AuthResponse("Bearer", jwtService.createToken(user), user.id(), user.email(), user.name());
     }
 }

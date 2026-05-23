@@ -1,33 +1,33 @@
 # Kedada API
 
-Backend inicial de Kedada, una API REST para registrar, consultar, buscar y organizar eventos en El Salvador.
+Initial Kedada backend, a REST API for registering, querying, searching, and organizing events in El Salvador.
 
-## Arquitectura
+## Architecture
 
-El proyecto usa Spring Boot 4, Java 25, Maven, PostgreSQL, Spring Web MVC, Spring Data JPA, Bean Validation, Flyway y springdoc-openapi.
+The project uses Spring Boot 4, Java 25, Maven, PostgreSQL, Spring Web MVC, Spring Data JPA, Bean Validation, Flyway, and springdoc-openapi.
 
-La estructura sigue capas por dominio:
+The structure follows domain-based layers:
 
-- `controller`: endpoints REST y validacion de entrada.
-- `service`: reglas de negocio, transacciones y validacion de referencias.
-- `repository`: acceso a datos JPA y queries nativas.
-- `entity`: modelo persistente JPA.
-- `dto`: contratos publicos de request/response.
-- `mapper`: conversion entity/DTO.
-- `common`: errores, respuestas compartidas y validaciones.
+- `controller`: REST endpoints and input validation.
+- `service`: business rules, transactions, and reference validation.
+- `repository`: JPA data access and native queries.
+- `entity`: JPA persistence model.
+- `dto`: public request/response contracts.
+- `mapper`: entity/DTO conversion.
+- `common`: shared errors, responses, and validations.
 
-## Decisiones tecnicas
+## Technical Decisions
 
-- `Event.thumbnail` se mantiene como `UUID` simple porque aun no existe tabla de archivos.
-- `owner_id` se modela como soft reference `UUID`, sin foreign key, para permitir integrar JWT/Auth mas adelante.
-- `Schedule` en el modelo original no tenia `event_id`. Se agrego `event_id uuid references events(id)` nullable para permitir horarios globales o aun no asociados, sin bloquear la evolucion del modelo.
-- `EventMetricDaily` usa llave compuesta `(event_id, day)` para metricas diarias por evento.
-- Los incrementos de vistas y compartidos usan `insert ... on conflict do update`, seguro frente a concurrencia en PostgreSQL.
-- Los eventos, categorias y URLs usan soft delete con `is_deleted` y `deleted_at`; los listados normales no retornan eliminados.
-- No se permite eliminar logicamente una categoria o URL mientras exista un evento activo que la referencie.
-- La busqueda de texto usa `search_vector` con trigger e indice GIN.
+- `Event.thumbnail` is kept as a plain `UUID` because there is no files table yet.
+- `owner_id` is modeled as a soft `UUID` reference, without a foreign key, to allow JWT/Auth integration later.
+- `Schedule` did not have `event_id` in the original model. A nullable `event_id uuid references events(id)` was added to support global or not-yet-associated schedules without blocking the model's evolution.
+- `EventMetricDaily` uses a composite key `(event_id, day)` for daily metrics per event.
+- View and share increments use `insert ... on conflict do update`, which is safe under concurrent access in PostgreSQL.
+- Events, categories, and URLs use soft delete with `is_deleted` and `deleted_at`; normal listings do not return deleted records.
+- A category or URL cannot be soft-deleted while an active event references it.
+- Text search uses `search_vector` with a trigger and GIN index.
 
-## Arbol principal
+## Main Tree
 
 ```text
 src/main/java/com/kedada/backend
@@ -76,7 +76,7 @@ src/main/resources
   db/migration/V1__create_initial_schema.sql
 ```
 
-## Correr localmente
+## Run Locally
 
 ```bash
 docker compose up -d
@@ -89,35 +89,35 @@ Swagger UI:
 http://localhost:8080/swagger-ui.html
 ```
 
-## Ejemplos JSON
+## JSON Examples
 
-Crear categoria:
+Create a category:
 
 ```json
 {
-  "name": "Musica",
+  "name": "Music",
   "ownerId": "11111111-1111-1111-1111-111111111111",
   "type": ["concert", "festival"]
 }
 ```
 
-Crear URL:
+Create a URL:
 
 ```json
 {
-  "url": "https://example.com/evento",
-  "description": "Sitio oficial",
+  "url": "https://example.com/event",
+  "description": "Official site",
   "ownerId": "11111111-1111-1111-1111-111111111111",
   "kind": "official"
 }
 ```
 
-Crear evento:
+Create an event:
 
 ```json
 {
-  "title": "Festival en San Salvador",
-  "description": "Evento cultural abierto al publico.",
+  "title": "Festival in San Salvador",
+  "description": "Cultural event open to the public.",
   "priority": 1,
   "thumbnail": null,
   "price": 12.50,
@@ -127,7 +127,7 @@ Crear evento:
 }
 ```
 
-Crear horario:
+Create a schedule:
 
 ```json
 {
@@ -138,19 +138,22 @@ Crear horario:
 }
 ```
 
-Registrar vista o compartido:
+Register a view or share:
 
 ```bash
 curl -X POST "http://localhost:8080/api/v1/events/{eventId}/view?ownerId=11111111-1111-1111-1111-111111111111"
 curl -X POST "http://localhost:8080/api/v1/events/{eventId}/share?ownerId=11111111-1111-1111-1111-111111111111"
 ```
 
-Buscar eventos:
+Search events:
 
 ```text
 GET /api/v1/events?q=festival&categoryId={uuid}&minPrice=0&maxPrice=25&priority=1&fromDate=2026-06-01T00:00:00-06:00&page=0&size=20&sort=createdAt,desc
 ```
-```
+
+Build and run with Docker:
+
+```bash
 docker build -t kedada-api:local .
 docker compose up -d postgres
 docker run --rm -p 8080:8080 \
@@ -161,8 +164,8 @@ docker run --rm -p 8080:8080 \
   kedada-api:local
 ```
 
-## Pendientes recomendados
+## Recommended Follow-Ups
 
-- Agregar autenticacion y resolver `owner_id` desde JWT en vez de request/query param.
-- Agregar pruebas de integracion con Testcontainers para PostgreSQL y Flyway.
-- Afinar ranking de busqueda (`ts_rank`) cuando exista UX de resultados.
+- Add authentication and resolve `owner_id` from JWT instead of request/query parameters.
+- Add integration tests with Testcontainers for PostgreSQL and Flyway.
+- Tune search ranking (`ts_rank`) once there is a results UX.
