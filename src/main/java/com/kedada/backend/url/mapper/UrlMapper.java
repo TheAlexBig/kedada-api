@@ -5,6 +5,8 @@ import com.kedada.backend.url.dto.UrlResponse;
 import com.kedada.backend.url.entity.Url;
 import org.springframework.stereotype.Component;
 
+import java.util.UUID;
+
 @Component
 public class UrlMapper {
 
@@ -21,6 +23,7 @@ public class UrlMapper {
     }
 
     public UrlResponse toResponse(Url url) {
-        return new UrlResponse(url.getId(), url.getUrl(), url.getDescription(), url.getOwnerId(), url.getKind());
+        UUID eventId = url.getEvent() == null ? null : url.getEvent().getId();
+        return new UrlResponse(url.getId(), eventId, url.getUrl(), url.getDescription(), url.getOwnerId(), url.getKind());
     }
 }

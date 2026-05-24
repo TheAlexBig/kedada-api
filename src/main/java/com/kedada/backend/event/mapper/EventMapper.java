@@ -4,14 +4,10 @@ import com.kedada.backend.event.dto.EventResponse;
 import com.kedada.backend.event.entity.Event;
 import org.springframework.stereotype.Component;
 
-import java.util.UUID;
-
 @Component
 public class EventMapper {
 
     public EventResponse toResponse(Event event) {
-        UUID siteUrlId = event.getSiteUrl() == null ? null : event.getSiteUrl().getId();
-        UUID referenceUrlId = event.getReferenceUrl() == null ? null : event.getReferenceUrl().getId();
         return new EventResponse(
                 event.getId(),
                 event.getTitle(),
@@ -19,9 +15,7 @@ public class EventMapper {
                 event.getPriority(),
                 event.getThumbnail(),
                 event.getPrice(),
-                siteUrlId,
-                referenceUrlId,
-                event.getType().getId(),
+                event.getCategories().stream().map(category -> category.getId()).toList(),
                 event.getOwnerId(),
                 event.getCreatedAt(),
                 event.getUpdatedAt()

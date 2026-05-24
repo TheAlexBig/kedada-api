@@ -24,7 +24,7 @@ The structure follows domain-based layers:
 - `EventMetricDaily` uses a composite key `(event_id, day)` for daily metrics per event.
 - View and share increments use `insert ... on conflict do update`, which is safe under concurrent access in PostgreSQL.
 - Events, categories, and URLs use soft delete with `is_deleted` and `deleted_at`; normal listings do not return deleted records.
-- A category or URL cannot be soft-deleted while an active event references it.
+- A category cannot be soft-deleted while an active event references it.
 - Text search uses `search_vector` with a trigger and GIN index.
 
 ## Main Tree
@@ -105,9 +105,9 @@ Create a URL:
 
 ```json
 {
+  "eventId": "44444444-4444-4444-4444-444444444444",
   "url": "https://example.com/event",
   "description": "Official site",
-  "ownerId": "11111111-1111-1111-1111-111111111111",
   "kind": "official"
 }
 ```
@@ -121,10 +121,17 @@ Create an event:
   "priority": 1,
   "thumbnail": null,
   "price": 12.50,
-  "siteUrlId": "22222222-2222-2222-2222-222222222222",
-  "referenceUrlId": null,
-  "categoryId": "33333333-3333-3333-3333-333333333333"
+  "categoryIds": [
+    "33333333-3333-3333-3333-333333333333",
+    "55555555-5555-5555-5555-555555555555"
+  ]
 }
+```
+
+List only the URLs for an event:
+
+```bash
+curl "http://localhost:8080/api/v1/urls?eventId=44444444-4444-4444-4444-444444444444&sort=kind,asc"
 ```
 
 Create a schedule:

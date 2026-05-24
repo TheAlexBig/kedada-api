@@ -12,15 +12,7 @@ public interface EventRepository extends JpaRepository<Event, UUID>, EventSearch
 
     Optional<Event> findByIdAndDeletedFalse(UUID id);
 
-    @Query("select count(e) > 0 from Event e where e.deleted = false and e.type.id = :categoryId")
+    @Query("select count(e) > 0 from Event e join e.categories c where e.deleted = false and c.id = :categoryId")
     boolean existsActiveByCategoryId(@Param("categoryId") UUID categoryId);
-
-    @Query("""
-            select count(e) > 0
-            from Event e
-            where e.deleted = false
-              and (e.siteUrl.id = :urlId or e.referenceUrl.id = :urlId)
-            """)
-    boolean existsActiveByUrlId(@Param("urlId") UUID urlId);
 
 }

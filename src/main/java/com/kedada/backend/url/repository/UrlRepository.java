@@ -13,4 +13,6 @@ public interface UrlRepository extends JpaRepository<Url, UUID> {
     Optional<Url> findByIdAndDeletedFalse(UUID id);
 
     Page<Url> findByDeletedFalse(Pageable pageable);
+
+    Page<Url> findByEvent_IdAndDeletedFalse(UUID eventId, Pageable pageable);
 }

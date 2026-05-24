@@ -1,7 +1,6 @@
 package com.kedada.backend.event.entity;
 
 import com.kedada.backend.category.entity.Category;
-import com.kedada.backend.url.entity.Url;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -9,11 +8,14 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.Table;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.UUID;
 
 @Entity
@@ -38,17 +40,13 @@ public class Event {
     @Column(precision = 10, scale = 2)
     private BigDecimal price;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "site_url")
-    private Url siteUrl;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "reference_url")
-    private Url referenceUrl;
-
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "type", nullable = false)
-    private Category type;
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "event_categories",
+            joinColumns = @JoinColumn(name = "event_id"),
+            inverseJoinColumns = @JoinColumn(name = "category_id")
+    )
+    private Set<Category> categories = new LinkedHashSet<>();
 
     @Column(name = "owner_id", nullable = false)
     private UUID ownerId;
@@ -109,28 +107,12 @@ public class Event {
         this.price = price;
     }
 
-    public Url getSiteUrl() {
-        return siteUrl;
+    public Set<Category> getCategories() {
+        return categories;
     }
 
-    public void setSiteUrl(Url siteUrl) {
-        this.siteUrl = siteUrl;
-    }
-
-    public Url getReferenceUrl() {
-        return referenceUrl;
-    }
-
-    public void setReferenceUrl(Url referenceUrl) {
-        this.referenceUrl = referenceUrl;
-    }
-
-    public Category getType() {
-        return type;
-    }
-
-    public void setType(Category type) {
-        this.type = type;
+    public void setCategories(Set<Category> categories) {
+        this.categories = categories;
     }
 
     public UUID getOwnerId() {

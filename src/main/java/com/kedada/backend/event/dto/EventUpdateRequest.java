@@ -5,6 +5,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 public record EventUpdateRequest(
@@ -13,8 +14,6 @@ public record EventUpdateRequest(
         @Min(1) Integer priority,
         UUID thumbnail,
         @DecimalMin("0.00") BigDecimal price,
-        UUID siteUrlId,
-        UUID referenceUrlId,
-        UUID categoryId
+        @Size(min = 1) List<UUID> categoryIds
 ) {
 }

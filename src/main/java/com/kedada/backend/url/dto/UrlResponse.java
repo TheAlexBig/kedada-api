@@ -4,6 +4,7 @@ import java.util.UUID;
 
 public record UrlResponse(
         UUID id,
+        UUID eventId,
         String url,
         String description,
         UUID ownerId,

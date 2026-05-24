@@ -160,26 +160,29 @@ through `BusinessConflictException`.
 
 Endpoint base: `/api/v1/urls`.
 
-URLs have `id`, `url`, `description`, `ownerId`, and `kind`. Deletion is hard
-delete in the API contract but implemented as soft delete. Creates assign
-`ownerId` from the authenticated user. Updates and deletes require ownership.
-`UrlService.delete` blocks deletion when an active event references the URL as
-either `siteUrl` or `referenceUrl`.
+URLs have `id`, nullable `eventId`, `url`, `description`, `ownerId`, and
+`kind`. An event may have multiple URL rows. Deletion is hard delete in the API
+contract but implemented as soft delete. Creates assign `ownerId` from the
+authenticated user; an optional `eventId` must refer to an active event owned
+by that user. Updates and deletes require ownership.
+
+`GET /api/v1/urls?eventId={eventId}` filters URL listings for one active event
+while retaining the normal pagination and sorting parameters.
 
 ### Events
 
 Endpoint base: `/api/v1/events`.
 
 Events have title, description, priority, optional thumbnail UUID, optional
-price, optional site/reference URLs, required category, timestamps, soft-delete
+price, one or more required categories, timestamps, soft-delete
 fields, `ownerId`, and a PostgreSQL `tsvector` search column.
 
 Important event behavior:
 
 - Creates default `priority` to `1` when omitted.
 - Creates assign `ownerId` from the authenticated user.
-- Create/update only allow categories and URLs owned by the same authenticated
-  user.
+- Create/update require at least one category and only allow categories owned by
+  the same authenticated user.
 - Updates and deletes require event ownership.
 - Reads use `findActive`; soft-deleted events are treated as not found.
 - Deletes are soft deletes via `is_deleted` and `deleted_at`.
@@ -235,8 +238,10 @@ Key schema details:
 - `users` stores authenticated users.
 - `events.owner_id`, `categories.owner_id`, `urls.owner_id`, and
   `schedules.owner_id` track resource ownership.
-- `events.type` is a foreign key to `categories(id)`.
-- `events.site_url` and `events.reference_url` are foreign keys to `urls(id)`.
+- `event_categories` associates an event with one or more categories and has
+  primary key `(event_id, category_id)`.
+- `urls.event_id` is nullable and references `events(id)`, allowing multiple
+  links for each event.
 - `schedules.event_id` is nullable and references `events(id)`.
 - `event_metric_daily` uses primary key `(event_id, day)`.
 - `events.search_vector` is maintained by a trigger.
@@ -273,7 +278,7 @@ DTOs use Jakarta Bean Validation annotations.
 Examples:
 
 - `EventCreateRequest.title`: required, max 100.
-- `EventCreateRequest.categoryId`: required.
+- `EventCreateRequest.categoryIds`: required, non-empty.
 - `EventCreateRequest.priority`: minimum 1.
 - `EventCreateRequest.price`: minimum 0.00.
 - `UrlCreateRequest.url`: required and valid URL.

@@ -2,6 +2,7 @@ package com.kedada.backend.event.dto;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
 public record EventResponse(
@@ -11,9 +12,7 @@ public record EventResponse(
         Integer priority,
         UUID thumbnail,
         BigDecimal price,
-        UUID siteUrlId,
-        UUID referenceUrlId,
-        UUID categoryId,
+        List<UUID> categoryIds,
         UUID ownerId,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt

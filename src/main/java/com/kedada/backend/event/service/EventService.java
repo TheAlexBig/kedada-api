@@ -9,8 +9,6 @@ import com.kedada.backend.event.dto.EventUpdateRequest;
 import com.kedada.backend.event.entity.Event;
 import com.kedada.backend.event.mapper.EventMapper;
 import com.kedada.backend.event.repository.EventRepository;
-import com.kedada.backend.url.entity.Url;
-import com.kedada.backend.url.service.UrlService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
@@ -19,20 +17,21 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class EventService {
 
     private final EventRepository repository;
     private final CategoryService categoryService;
-    private final UrlService urlService;
     private final EventMapper mapper;
 
-    public EventService(EventRepository repository, CategoryService categoryService, UrlService urlService, EventMapper mapper) {
+    public EventService(EventRepository repository, CategoryService categoryService, EventMapper mapper) {
         this.repository = repository;
         this.categoryService = categoryService;
-        this.urlService = urlService;
         this.mapper = mapper;
     }
 
@@ -44,9 +43,7 @@ public class EventService {
         event.setPriority(request.priority() == null ? 1 : request.priority());
         event.setThumbnail(request.thumbnail());
         event.setPrice(request.price());
-        event.setType(categoryService.find(request.categoryId()));
-        event.setSiteUrl(resolveUrl(ownerId, request.siteUrlId()));
-        event.setReferenceUrl(resolveUrl(ownerId, request.referenceUrlId()));
+        event.setCategories(resolveCategories(request.categoryIds()));
         event.setOwnerId(ownerId);
         return mapper.toResponse(repository.save(event));
     }
@@ -82,15 +79,8 @@ public class EventService {
         if (request.price() != null) {
             event.setPrice(request.price());
         }
-        if (request.categoryId() != null) {
-            Category category = categoryService.find(request.categoryId());
-            event.setType(category);
-        }
-        if (request.siteUrlId() != null) {
-            event.setSiteUrl(resolveUrl(ownerId, request.siteUrlId()));
-        }
-        if (request.referenceUrlId() != null) {
-            event.setReferenceUrl(resolveUrl(ownerId, request.referenceUrlId()));
+        if (request.categoryIds() != null) {
+            event.setCategories(resolveCategories(request.categoryIds()));
         }
         return mapper.toResponse(event);
     }
@@ -115,12 +105,14 @@ public class EventService {
         return event;
     }
 
-    private Url resolveUrl(UUID ownerId, UUID id) {
-        return id == null ? null : urlService.findOwned(ownerId, id);
-    }
-
     private String blankToNull(String value) {
         return value == null || value.isBlank() ? null : value;
+    }
+
+    private LinkedHashSet<Category> resolveCategories(List<UUID> categoryIds) {
+        return categoryIds.stream()
+                .map(categoryService::find)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     private void assertOwner(UUID actualOwnerId, UUID expectedOwnerId) {

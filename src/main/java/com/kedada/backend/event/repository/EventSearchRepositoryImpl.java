@@ -65,7 +65,7 @@ public class EventSearchRepositoryImpl implements EventSearchRepository {
             params.put("q", q);
         }
         if (categoryId != null) {
-            where.append(" and e.type = :categoryId");
+            where.append(" and exists (select 1 from event_categories ec where ec.event_id = e.id and ec.category_id = :categoryId)");
             params.put("categoryId", categoryId);
         }
         if (minPrice != null) {
