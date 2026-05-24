@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
@@ -44,8 +45,9 @@ public class ScheduleController {
     }
 
     @GetMapping
-    Page<ScheduleResponse> list(@ParameterObject @PageableDefault(size = 20, sort = "startDate") Pageable pageable) {
-        return service.list(pageable);
+    Page<ScheduleResponse> list(@RequestParam(required = false) UUID eventId,
+                                @ParameterObject @PageableDefault(size = 20, sort = "startDate") Pageable pageable) {
+        return service.list(eventId, pageable);
     }
 
     @PutMapping("/{id}")

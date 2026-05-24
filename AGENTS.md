@@ -199,6 +199,9 @@ Creates assign `ownerId` from the authenticated user. Updates and deletes requir
 ownership. When an `eventId` is provided, `ScheduleService` verifies the event is
 active and owned by the authenticated user.
 
+`GET /api/v1/schedules?eventId={eventId}` filters schedule listings for one
+active event while retaining the normal pagination and sorting parameters.
+
 Date ranges are validated in two places:
 
 - Bean validation with `@ValidDateRange`.

@@ -42,8 +42,13 @@ public class ScheduleService {
     }
 
     @Transactional(readOnly = true)
-    public Page<ScheduleResponse> list(Pageable pageable) {
-        return repository.findAll(pageable).map(mapper::toResponse);
+    public Page<ScheduleResponse> list(UUID eventId, Pageable pageable) {
+        if (eventId == null) {
+            return repository.findAll(pageable).map(mapper::toResponse);
+        }
+
+        eventService.findActive(eventId);
+        return repository.findByEvent_Id(eventId, pageable).map(mapper::toResponse);
     }
 
     @Transactional

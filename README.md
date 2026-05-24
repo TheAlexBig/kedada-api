@@ -138,6 +138,12 @@ Create a schedule:
 }
 ```
 
+List only the schedules for an event:
+
+```bash
+curl "http://localhost:8080/api/v1/schedules?eventId=44444444-4444-4444-4444-444444444444&sort=startDate,asc"
+```
+
 Register a view or share:
 
 ```bash
