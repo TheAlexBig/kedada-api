@@ -49,13 +49,13 @@ public class CategoryController {
     }
 
     @PutMapping("/{id}")
-    CategoryResponse update(@AuthenticationPrincipal AuthenticatedUser user, @PathVariable UUID id, @Valid @RequestBody CategoryCreateRequest request) {
-        return service.update(user, id, request);
+    CategoryResponse update(@PathVariable UUID id, @Valid @RequestBody CategoryCreateRequest request) {
+        return service.update(id, request);
     }
 
     @DeleteMapping("/{id}")
-    ResponseEntity<Void> delete(@AuthenticationPrincipal AuthenticatedUser user, @PathVariable UUID id) {
-        service.delete(user, id);
+    ResponseEntity<Void> delete(@PathVariable UUID id) {
+        service.delete(id);
         return ResponseEntity.noContent().build();
     }
 }

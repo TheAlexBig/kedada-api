@@ -1,6 +1,5 @@
 package com.kedada.backend.category.service;
 
-import com.kedada.backend.auth.security.AuthenticatedUser;
 import com.kedada.backend.category.dto.CategoryCreateRequest;
 import com.kedada.backend.category.dto.CategoryResponse;
 import com.kedada.backend.category.entity.Category;
@@ -9,7 +8,6 @@ import com.kedada.backend.category.repository.CategoryRepository;
 import com.kedada.backend.common.exception.BusinessConflictException;
 import com.kedada.backend.common.exception.ResourceNotFoundException;
 import com.kedada.backend.event.repository.EventRepository;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -49,17 +47,15 @@ public class CategoryService {
     }
 
     @Transactional
-    public CategoryResponse update(AuthenticatedUser requester, UUID id, CategoryCreateRequest request) {
+    public CategoryResponse update(UUID id, CategoryCreateRequest request) {
         Category category = find(id);
-        assertCanManage(category.getOwnerId(), requester);
         mapper.apply(category, request);
         return mapper.toResponse(category);
     }
 
     @Transactional
-    public void delete(AuthenticatedUser requester, UUID id) {
+    public void delete(UUID id) {
         Category category = find(id);
-        assertCanManage(category.getOwnerId(), requester);
         if (eventRepository.existsActiveByCategoryId(id)) {
             throw new BusinessConflictException("Category is referenced by at least one active event");
         }
@@ -69,23 +65,5 @@ public class CategoryService {
 
     public Category find(UUID id) {
         return repository.findByIdAndDeletedFalse(id).orElseThrow(() -> new ResourceNotFoundException("Category not found: " + id));
-    }
-
-    public Category findOwned(UUID ownerId, UUID id) {
-        Category category = find(id);
-        assertOwner(category.getOwnerId(), ownerId);
-        return category;
-    }
-
-    private void assertOwner(UUID actualOwnerId, UUID expectedOwnerId) {
-        if (!actualOwnerId.equals(expectedOwnerId)) {
-            throw new AccessDeniedException("You do not own this category");
-        }
-    }
-
-    private void assertCanManage(UUID ownerId, AuthenticatedUser requester) {
-        if (!ownerId.equals(requester.id()) && !"ADMIN".equals(requester.role())) {
-            throw new AccessDeniedException("You do not own this category");
-        }
     }
 }

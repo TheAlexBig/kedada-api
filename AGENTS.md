@@ -158,7 +158,8 @@ Endpoint base: `/api/v1/categories`.
 
 Categories have `id`, `name`, `ownerId`, and `type` as a list/string array.
 Creates assign `ownerId` from the authenticated user. Updates and deletes require
-resource ownership or an authenticated `ADMIN` role. Deletion is soft delete, but `CategoryService.delete` blocks
+an authenticated panel user; `ownerId` is retained as creation/audit metadata,
+not a category-management restriction. Deletion is soft delete, but `CategoryService.delete` blocks
 deletion when any active event references the category and returns a conflict
 through `BusinessConflictException`.
 
