@@ -158,7 +158,7 @@ Endpoint base: `/api/v1/categories`.
 
 Categories have `id`, `name`, `ownerId`, and `type` as a list/string array.
 Creates assign `ownerId` from the authenticated user. Updates and deletes require
-resource ownership. Deletion is soft delete, but `CategoryService.delete` blocks
+resource ownership or an authenticated `ADMIN` role. Deletion is soft delete, but `CategoryService.delete` blocks
 deletion when any active event references the category and returns a conflict
 through `BusinessConflictException`.
 
@@ -239,13 +239,15 @@ Endpoint base: `/api/v1/events/{eventId}/metrics`.
 
 Metrics are daily per event using composite key `(event_id, day)`.
 
-- `POST /api/v1/events/{id}/view?ownerId=...` increments views.
-- `POST /api/v1/events/{id}/share?ownerId=...` increments shares.
-- `GET /api/v1/events/{eventId}/metrics/daily` returns daily rows, newest first.
+- `POST /api/v1/events/{id}/view` increments views for the event's stored owner.
+- `POST /api/v1/events/{id}/share` increments shares for the event's stored owner.
+- `GET /api/v1/events/{eventId}/metrics/daily?from=YYYY-MM-DD&to=YYYY-MM-DD` returns authenticated daily analytics over at most 366 days.
 - `GET /api/v1/events/{eventId}/metrics/summary` returns total views/shares.
 
 Metric increments use PostgreSQL `insert ... on conflict do update`, which is
-safe under concurrent requests.
+safe under concurrent requests. Public tracking requests are bounded in memory
+and deduplicated per event/client for repeated refreshes; production deployment
+should additionally rate limit `/api/` at the edge for volumetric traffic.
 
 ## Database And Migrations
 

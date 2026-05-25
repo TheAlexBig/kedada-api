@@ -13,7 +13,7 @@ import java.util.UUID;
 
 public interface EventMetricDailyRepository extends JpaRepository<EventMetricDaily, EventMetricDailyId> {
 
-    List<EventMetricDaily> findByIdEventIdOrderByIdDayDesc(UUID eventId);
+    List<EventMetricDaily> findByIdEventIdAndIdDayBetweenOrderByIdDayAsc(UUID eventId, LocalDate from, LocalDate to);
 
     @Modifying
     @Query(value = """

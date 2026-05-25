@@ -9,7 +9,7 @@ import com.kedada.backend.event.service.EventService;
 import com.kedada.backend.metric.service.EventMetricService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotNull;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -89,18 +89,51 @@ public class EventController {
     }
 
     @PostMapping("/{id}/view")
-    ResponseEntity<Void> view(@PathVariable UUID id, @RequestParam @NotNull UUID ownerId) {
-        metricService.registerView(id, ownerId);
+    ResponseEntity<Void> view(@PathVariable UUID id, HttpServletRequest request) {
+        metricService.registerView(id, clientAddress(request));
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/share")
-    ResponseEntity<Void> share(@PathVariable UUID id, @RequestParam @NotNull UUID ownerId) {
-        metricService.registerShare(id, ownerId);
+    ResponseEntity<Void> share(@PathVariable UUID id, HttpServletRequest request) {
+        metricService.registerShare(id, clientAddress(request));
         return ResponseEntity.noContent().build();
     }
 
     private UUID requesterId(AuthenticatedUser user) {
         return user == null ? null : user.id();
+    }
+
+    private String clientAddress(HttpServletRequest request) {
+        String remoteAddress = request.getRemoteAddr();
+        String forwardedAddress = request.getHeader("X-Real-IP");
+        if (isInternalProxy(remoteAddress) && forwardedAddress != null && forwardedAddress.matches("[0-9a-fA-F:.]{3,45}")) {
+            return forwardedAddress;
+        }
+        return remoteAddress;
+    }
+
+    private boolean isInternalProxy(String address) {
+        return address.equals("127.0.0.1")
+                || address.equals("::1")
+                || address.startsWith("10.")
+                || isPrivate172Address(address)
+                || address.startsWith("192.168.");
+    }
+
+    private boolean isPrivate172Address(String address) {
+        if (!address.startsWith("172.")) {
+            return false;
+        }
+        String[] parts = address.split("\\.");
+        if (parts.length != 4) {
+            return false;
+        }
+        try {
+            int secondOctet = Integer.parseInt(parts[1]);
+            return secondOctet >= 16 && secondOctet <= 31;
+        } catch (NumberFormatException ignored) {
+            return false;
+        }
     }
 }

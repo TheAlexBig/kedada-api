@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 
@@ -18,28 +19,39 @@ public class EventMetricService {
 
     private final EventMetricDailyRepository repository;
     private final EventService eventService;
+    private final EventMetricRequestGuard requestGuard;
 
-    public EventMetricService(EventMetricDailyRepository repository, EventService eventService) {
+    public EventMetricService(EventMetricDailyRepository repository, EventService eventService, EventMetricRequestGuard requestGuard) {
         this.repository = repository;
         this.eventService = eventService;
+        this.requestGuard = requestGuard;
     }
 
     @Transactional
-    public void registerView(UUID eventId, UUID ownerId) {
-        eventService.findVisibleOnWebsite(eventId);
-        repository.incrementViews(eventId, LocalDate.now(), ownerId);
+    public void registerView(UUID eventId, String clientAddress) {
+        if (!requestGuard.shouldRecordView(eventId, clientAddress)) {
+            return;
+        }
+        var event = eventService.findVisibleOnWebsite(eventId);
+        repository.incrementViews(eventId, LocalDate.now(), event.getOwnerId());
     }
 
     @Transactional
-    public void registerShare(UUID eventId, UUID ownerId) {
-        eventService.findVisibleOnWebsite(eventId);
-        repository.incrementShares(eventId, LocalDate.now(), ownerId);
+    public void registerShare(UUID eventId, String clientAddress) {
+        if (!requestGuard.shouldRecordShare(eventId, clientAddress)) {
+            return;
+        }
+        var event = eventService.findVisibleOnWebsite(eventId);
+        repository.incrementShares(eventId, LocalDate.now(), event.getOwnerId());
     }
 
     @Transactional(readOnly = true)
-    public List<EventMetricDailyResponse> daily(UUID eventId, UUID requesterId) {
+    public List<EventMetricDailyResponse> daily(UUID eventId, UUID requesterId, LocalDate from, LocalDate to) {
         eventService.findAccessible(eventId, requesterId);
-        return repository.findByIdEventIdOrderByIdDayDesc(eventId).stream()
+        if (to.isBefore(from) || ChronoUnit.DAYS.between(from, to) > 365) {
+            throw new IllegalArgumentException("Metric date range must contain at most 366 days");
+        }
+        return repository.findByIdEventIdAndIdDayBetweenOrderByIdDayAsc(eventId, from, to).stream()
                 .map(this::toResponse)
                 .toList();
     }

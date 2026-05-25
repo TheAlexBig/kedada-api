@@ -1,5 +1,6 @@
 package com.kedada.backend.category.service;
 
+import com.kedada.backend.auth.security.AuthenticatedUser;
 import com.kedada.backend.category.dto.CategoryCreateRequest;
 import com.kedada.backend.category.dto.CategoryResponse;
 import com.kedada.backend.category.entity.Category;
@@ -48,17 +49,17 @@ public class CategoryService {
     }
 
     @Transactional
-    public CategoryResponse update(UUID ownerId, UUID id, CategoryCreateRequest request) {
+    public CategoryResponse update(AuthenticatedUser requester, UUID id, CategoryCreateRequest request) {
         Category category = find(id);
-        assertOwner(category.getOwnerId(), ownerId);
+        assertCanManage(category.getOwnerId(), requester);
         mapper.apply(category, request);
         return mapper.toResponse(category);
     }
 
     @Transactional
-    public void delete(UUID ownerId, UUID id) {
+    public void delete(AuthenticatedUser requester, UUID id) {
         Category category = find(id);
-        assertOwner(category.getOwnerId(), ownerId);
+        assertCanManage(category.getOwnerId(), requester);
         if (eventRepository.existsActiveByCategoryId(id)) {
             throw new BusinessConflictException("Category is referenced by at least one active event");
         }
@@ -78,6 +79,12 @@ public class CategoryService {
 
     private void assertOwner(UUID actualOwnerId, UUID expectedOwnerId) {
         if (!actualOwnerId.equals(expectedOwnerId)) {
+            throw new AccessDeniedException("You do not own this category");
+        }
+    }
+
+    private void assertCanManage(UUID ownerId, AuthenticatedUser requester) {
+        if (!ownerId.equals(requester.id()) && !"ADMIN".equals(requester.role())) {
             throw new AccessDeniedException("You do not own this category");
         }
     }

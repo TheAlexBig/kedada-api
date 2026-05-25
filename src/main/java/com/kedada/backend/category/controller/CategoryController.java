@@ -50,12 +50,12 @@ public class CategoryController {
 
     @PutMapping("/{id}")
     CategoryResponse update(@AuthenticationPrincipal AuthenticatedUser user, @PathVariable UUID id, @Valid @RequestBody CategoryCreateRequest request) {
-        return service.update(user.id(), id, request);
+        return service.update(user, id, request);
     }
 
     @DeleteMapping("/{id}")
     ResponseEntity<Void> delete(@AuthenticationPrincipal AuthenticatedUser user, @PathVariable UUID id) {
-        service.delete(user.id(), id);
+        service.delete(user, id);
         return ResponseEntity.noContent().build();
     }
 }
