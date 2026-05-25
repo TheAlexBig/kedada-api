@@ -9,6 +9,7 @@ import com.kedada.backend.event.dto.EventUpdateRequest;
 import com.kedada.backend.event.entity.Event;
 import com.kedada.backend.event.mapper.EventMapper;
 import com.kedada.backend.event.repository.EventRepository;
+import com.kedada.backend.media.service.MediaAssetService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
@@ -27,11 +28,13 @@ public class EventService {
 
     private final EventRepository repository;
     private final CategoryService categoryService;
+    private final MediaAssetService mediaAssetService;
     private final EventMapper mapper;
 
-    public EventService(EventRepository repository, CategoryService categoryService, EventMapper mapper) {
+    public EventService(EventRepository repository, CategoryService categoryService, MediaAssetService mediaAssetService, EventMapper mapper) {
         this.repository = repository;
         this.categoryService = categoryService;
+        this.mediaAssetService = mediaAssetService;
         this.mapper = mapper;
     }
 
@@ -41,7 +44,7 @@ public class EventService {
         event.setTitle(request.title());
         event.setDescription(request.description());
         event.setPriority(request.priority() == null ? 1 : request.priority());
-        event.setThumbnail(request.thumbnail());
+        event.setThumbnail(resolveThumbnail(ownerId, request.thumbnail()));
         event.setPrice(request.price());
         event.setCategories(resolveCategories(request.categoryIds()));
         event.setOwnerId(ownerId);
@@ -73,9 +76,7 @@ public class EventService {
         if (request.priority() != null) {
             event.setPriority(request.priority());
         }
-        if (request.thumbnail() != null) {
-            event.setThumbnail(request.thumbnail());
-        }
+        event.setThumbnail(resolveThumbnail(ownerId, request.thumbnail()));
         if (request.price() != null) {
             event.setPrice(request.price());
         }
@@ -113,6 +114,14 @@ public class EventService {
         return categoryIds.stream()
                 .map(categoryService::find)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    private UUID resolveThumbnail(UUID ownerId, UUID thumbnailId) {
+        if (thumbnailId == null) {
+            return null;
+        }
+        mediaAssetService.findOwned(ownerId, thumbnailId);
+        return thumbnailId;
     }
 
     private void assertOwner(UUID actualOwnerId, UUID expectedOwnerId) {

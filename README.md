@@ -18,7 +18,8 @@ The structure follows domain-based layers:
 
 ## Technical Decisions
 
-- `Event.thumbnail` is kept as a plain `UUID` because there is no files table yet.
+- `Event.thumbnail` stores the UUID of a private `media_assets` image record.
+- Images are stored in S3-compatible object storage and displayed through short-lived signed read URLs.
 - `owner_id` is modeled as a soft `UUID` reference, without a foreign key, to allow JWT/Auth integration later.
 - `Schedule` did not have `event_id` in the original model. A nullable `event_id uuid references events(id)` was added to support global or not-yet-associated schedules without blocking the model's evolution.
 - `EventMetricDaily` uses a composite key `(event_id, day)` for daily metrics per event.
@@ -126,6 +127,22 @@ Create an event:
     "55555555-5555-5555-5555-555555555555"
   ]
 }
+```
+
+Upload an event image (authenticated):
+
+```bash
+curl -X POST "http://localhost:8080/api/v1/media" \
+  -H "Authorization: Bearer {token}" \
+  -F "file=@poster.jpg"
+```
+
+The response includes an image `id` to send as the event `thumbnail` and a
+temporary `readUrl`. For a published event image, clients refresh the signed
+read URL through:
+
+```bash
+curl "http://localhost:8080/api/v1/media/{thumbnailId}"
 ```
 
 List only the URLs for an event:

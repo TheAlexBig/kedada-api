@@ -117,6 +117,12 @@ src/main/java/com/kedada/backend
     entity/
     dto/
     mapper/
+  media/
+    controller/
+    service/
+    repository/
+    entity/
+    dto/
 ```
 
 Layer responsibilities:
@@ -191,6 +197,19 @@ Important event behavior:
   `priority`, and `price`. Unsupported sort fields become `400 Bad Request`.
 - Text search checks both Spanish and simple PostgreSQL dictionaries.
 - Date filters use `exists` against `schedules.start_date`.
+- `thumbnail`, when supplied, must reference a media image owned by the same user.
+
+### Media
+
+Endpoint base: `/api/v1/media`.
+
+Images are uploaded through authenticated `POST /api/v1/media` multipart
+requests and stored in a private S3-compatible bucket. The API records object
+metadata in `media_assets`; event `thumbnail` values reference these stable
+media UUIDs. `GET /api/v1/media/{id}` returns a short-lived signed read URL for
+images attached to active events, or for an authenticated owner previewing an
+uploaded image before association. Upload validation permits JPEG, PNG, WEBP,
+and GIF images up to 5 MB and checks their file signatures.
 
 ### Schedules
 
@@ -243,6 +262,8 @@ Key schema details:
 - `urls.event_id` is nullable and references `events(id)`, allowing multiple
   links for each event.
 - `schedules.event_id` is nullable and references `events(id)`.
+- `media_assets` stores private S3 object metadata and `events.thumbnail`
+  references `media_assets(id)`.
 - `event_metric_daily` uses primary key `(event_id, day)`.
 - `events.search_vector` is maintained by a trigger.
 - `events.updated_at` is maintained by a trigger.
