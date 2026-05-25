@@ -190,11 +190,11 @@ Important event behavior:
 - Creates default `visibleOnWebsite` to `true` when omitted.
 - Create/update require at least one category and only allow categories owned by
   the same authenticated user.
-- Updates and deletes require event ownership.
 - Anonymous reads only return events where `visibleOnWebsite` is true;
   authenticated admin-panel users can read hidden active events and change
   website visibility regardless of owner.
-- Full event updates and deletes continue to require event ownership.
+- Authenticated panel users can update and soft-delete events regardless of
+  owner.
 - Deletes are soft deletes via `is_deleted` and `deleted_at`.
 - Search is implemented by `EventSearchRepositoryImpl` with native SQL.
 - Supported event sort fields are `createdAt`, `updatedAt`, `title`,

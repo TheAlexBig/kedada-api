@@ -84,7 +84,7 @@ public class EventController {
 
     @DeleteMapping("/{id}")
     ResponseEntity<Void> delete(@AuthenticationPrincipal AuthenticatedUser user, @PathVariable UUID id) {
-        eventService.softDelete(user.id(), id);
+        eventService.softDelete(id);
         return ResponseEntity.noContent().build();
     }
 

@@ -67,7 +67,6 @@ public class EventService {
     @Transactional
     public EventResponse update(UUID ownerId, UUID id, EventUpdateRequest request) {
         Event event = findActive(id);
-        assertOwner(event.getOwnerId(), ownerId);
         if (request.title() != null) {
             event.setTitle(request.title());
         }
@@ -77,7 +76,9 @@ public class EventService {
         if (request.priority() != null) {
             event.setPriority(request.priority());
         }
-        event.setThumbnail(resolveThumbnail(ownerId, request.thumbnail()));
+        if (request.thumbnail() == null || !request.thumbnail().equals(event.getThumbnail())) {
+            event.setThumbnail(resolveThumbnail(ownerId, request.thumbnail()));
+        }
         if (request.price() != null) {
             event.setPrice(request.price());
         }
@@ -98,9 +99,8 @@ public class EventService {
     }
 
     @Transactional
-    public void softDelete(UUID ownerId, UUID id) {
+    public void softDelete(UUID id) {
         Event event = findActive(id);
-        assertOwner(event.getOwnerId(), ownerId);
         event.setDeleted(true);
         event.setDeletedAt(OffsetDateTime.now());
     }
