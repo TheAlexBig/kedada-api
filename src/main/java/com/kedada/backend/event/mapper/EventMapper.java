@@ -15,6 +15,7 @@ public class EventMapper {
                 event.getPriority(),
                 event.getThumbnail(),
                 event.getPrice(),
+                event.isVisibleOnWebsite(),
                 event.getCategories().stream().map(category -> category.getId()).toList(),
                 event.getOwnerId(),
                 event.getCreatedAt(),

@@ -46,20 +46,21 @@ public class EventService {
         event.setPriority(request.priority() == null ? 1 : request.priority());
         event.setThumbnail(resolveThumbnail(ownerId, request.thumbnail()));
         event.setPrice(request.price());
+        event.setVisibleOnWebsite(request.visibleOnWebsite() == null || request.visibleOnWebsite());
         event.setCategories(resolveCategories(request.categoryIds()));
         event.setOwnerId(ownerId);
         return mapper.toResponse(repository.save(event));
     }
 
     @Transactional(readOnly = true)
-    public EventResponse get(UUID id) {
-        return mapper.toResponse(findActive(id));
+    public EventResponse get(UUID id, UUID requesterId) {
+        return mapper.toResponse(findAccessible(id, requesterId));
     }
 
     @Transactional(readOnly = true)
     public Page<EventResponse> search(String q, UUID categoryId, BigDecimal minPrice, BigDecimal maxPrice, Integer priority,
-                                      OffsetDateTime fromDate, OffsetDateTime toDate, Pageable pageable) {
-        return repository.search(blankToNull(q), categoryId, minPrice, maxPrice, priority, fromDate, toDate, pageable)
+                                      OffsetDateTime fromDate, OffsetDateTime toDate, UUID requesterId, Pageable pageable) {
+        return repository.search(blankToNull(q), categoryId, minPrice, maxPrice, priority, fromDate, toDate, requesterId, pageable)
                 .map(mapper::toResponse);
     }
 
@@ -80,9 +81,19 @@ public class EventService {
         if (request.price() != null) {
             event.setPrice(request.price());
         }
+        if (request.visibleOnWebsite() != null) {
+            event.setVisibleOnWebsite(request.visibleOnWebsite());
+        }
         if (request.categoryIds() != null) {
             event.setCategories(resolveCategories(request.categoryIds()));
         }
+        return mapper.toResponse(event);
+    }
+
+    @Transactional
+    public EventResponse updateVisibility(UUID id, boolean visibleOnWebsite) {
+        Event event = findActive(id);
+        event.setVisibleOnWebsite(visibleOnWebsite);
         return mapper.toResponse(event);
     }
 
@@ -104,6 +115,20 @@ public class EventService {
         Event event = findActive(id);
         assertOwner(event.getOwnerId(), ownerId);
         return event;
+    }
+
+    @Transactional(readOnly = true)
+    public Event findAccessible(UUID id, UUID requesterId) {
+        Event event = findActive(id);
+        if (!event.isVisibleOnWebsite() && requesterId == null) {
+            throw new ResourceNotFoundException("Event not found: " + id);
+        }
+        return event;
+    }
+
+    @Transactional(readOnly = true)
+    public Event findVisibleOnWebsite(UUID id) {
+        return findAccessible(id, null);
     }
 
     private String blankToNull(String value) {

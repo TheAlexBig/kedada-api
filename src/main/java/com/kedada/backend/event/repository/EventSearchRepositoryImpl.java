@@ -33,9 +33,9 @@ public class EventSearchRepositoryImpl implements EventSearchRepository {
 
     @Override
     public Page<Event> search(String q, UUID categoryId, BigDecimal minPrice, BigDecimal maxPrice, Integer priority,
-                              OffsetDateTime fromDate, OffsetDateTime toDate, Pageable pageable) {
+                              OffsetDateTime fromDate, OffsetDateTime toDate, UUID requesterId, Pageable pageable) {
         Map<String, Object> params = new HashMap<>();
-        String where = whereClause(q, categoryId, minPrice, maxPrice, priority, fromDate, toDate, params);
+        String where = whereClause(q, categoryId, minPrice, maxPrice, priority, fromDate, toDate, requesterId, params);
 
         Query contentQuery = entityManager.createNativeQuery("""
                 select distinct e.*
@@ -58,8 +58,11 @@ public class EventSearchRepositoryImpl implements EventSearchRepository {
     }
 
     private String whereClause(String q, UUID categoryId, BigDecimal minPrice, BigDecimal maxPrice, Integer priority,
-                               OffsetDateTime fromDate, OffsetDateTime toDate, Map<String, Object> params) {
+                               OffsetDateTime fromDate, OffsetDateTime toDate, UUID requesterId, Map<String, Object> params) {
         StringBuilder where = new StringBuilder(" where e.is_deleted = false");
+        if (requesterId == null) {
+            where.append(" and e.visible_on_website = true");
+        }
         if (q != null) {
             where.append(" and (e.search_vector @@ plainto_tsquery('spanish', :q) or e.search_vector @@ plainto_tsquery('simple', :q))");
             params.put("q", q);

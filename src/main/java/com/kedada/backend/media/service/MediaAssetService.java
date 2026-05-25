@@ -75,9 +75,10 @@ public class MediaAssetService {
     @Transactional(readOnly = true)
     public MediaAssetResponse get(UUID id, UUID requesterId) {
         MediaAsset asset = find(id);
-        boolean isPublished = eventRepository.existsActiveByThumbnailId(id);
+        boolean isPublished = eventRepository.existsVisibleByThumbnailId(id);
+        boolean isUsedByActiveEvent = requesterId != null && eventRepository.existsActiveByThumbnailId(id);
         boolean isOwner = requesterId != null && requesterId.equals(asset.getOwnerId());
-        if (!isPublished && !isOwner) {
+        if (!isPublished && !isUsedByActiveEvent && !isOwner) {
             throw new ResourceNotFoundException("Image not found: " + id);
         }
         return toResponse(asset);

@@ -40,14 +40,14 @@ public class UrlController {
     }
 
     @GetMapping("/{id}")
-    UrlResponse get(@PathVariable UUID id) {
-        return service.get(id);
+    UrlResponse get(@AuthenticationPrincipal AuthenticatedUser user, @PathVariable UUID id) {
+        return service.get(id, requesterId(user));
     }
 
     @GetMapping
-    Page<UrlResponse> list(@RequestParam(required = false) UUID eventId,
+    Page<UrlResponse> list(@AuthenticationPrincipal AuthenticatedUser user, @RequestParam(required = false) UUID eventId,
                            @ParameterObject @PageableDefault(size = 20, sort = "kind") Pageable pageable) {
-        return service.list(eventId, pageable);
+        return service.list(eventId, requesterId(user), pageable);
     }
 
     @PutMapping("/{id}")
@@ -59,5 +59,9 @@ public class UrlController {
     ResponseEntity<Void> delete(@AuthenticationPrincipal AuthenticatedUser user, @PathVariable UUID id) {
         service.delete(user.id(), id);
         return ResponseEntity.noContent().build();
+    }
+
+    private UUID requesterId(AuthenticatedUser user) {
+        return user == null ? null : user.id();
     }
 }

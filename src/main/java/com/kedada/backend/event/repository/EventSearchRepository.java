@@ -18,6 +18,7 @@ public interface EventSearchRepository {
             Integer priority,
             OffsetDateTime fromDate,
             OffsetDateTime toDate,
+            UUID requesterId,
             Pageable pageable
     );
 }

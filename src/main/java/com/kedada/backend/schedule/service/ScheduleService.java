@@ -37,17 +37,19 @@ public class ScheduleService {
     }
 
     @Transactional(readOnly = true)
-    public ScheduleResponse get(UUID id) {
-        return mapper.toResponse(find(id));
+    public ScheduleResponse get(UUID id, UUID requesterId) {
+        Schedule schedule = find(id);
+        assertEventAccessible(schedule, requesterId);
+        return mapper.toResponse(schedule);
     }
 
     @Transactional(readOnly = true)
-    public Page<ScheduleResponse> list(UUID eventId, Pageable pageable) {
+    public Page<ScheduleResponse> list(UUID eventId, UUID requesterId, Pageable pageable) {
         if (eventId == null) {
-            return repository.findAll(pageable).map(mapper::toResponse);
+            return repository.findAccessible(requesterId, pageable).map(mapper::toResponse);
         }
 
-        eventService.findActive(eventId);
+        eventService.findAccessible(eventId, requesterId);
         return repository.findByEvent_Id(eventId, pageable).map(mapper::toResponse);
     }
 
@@ -81,6 +83,12 @@ public class ScheduleService {
     private void assertOwner(UUID actualOwnerId, UUID expectedOwnerId) {
         if (!actualOwnerId.equals(expectedOwnerId)) {
             throw new AccessDeniedException("You do not own this schedule");
+        }
+    }
+
+    private void assertEventAccessible(Schedule schedule, UUID requesterId) {
+        if (schedule.getEvent() != null) {
+            eventService.findAccessible(schedule.getEvent().getId(), requesterId);
         }
     }
 }

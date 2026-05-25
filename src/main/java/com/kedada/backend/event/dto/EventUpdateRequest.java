@@ -14,6 +14,7 @@ public record EventUpdateRequest(
         @Min(1) Integer priority,
         UUID thumbnail,
         @DecimalMin("0.00") BigDecimal price,
+        Boolean visibleOnWebsite,
         @Size(min = 1) List<UUID> categoryIds
 ) {
 }

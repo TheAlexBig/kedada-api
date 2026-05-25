@@ -12,6 +12,7 @@ public record EventResponse(
         Integer priority,
         UUID thumbnail,
         BigDecimal price,
+        boolean visibleOnWebsite,
         List<UUID> categoryIds,
         UUID ownerId,
         OffsetDateTime createdAt,

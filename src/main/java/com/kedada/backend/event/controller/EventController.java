@@ -4,6 +4,7 @@ import com.kedada.backend.auth.security.AuthenticatedUser;
 import com.kedada.backend.event.dto.EventCreateRequest;
 import com.kedada.backend.event.dto.EventResponse;
 import com.kedada.backend.event.dto.EventUpdateRequest;
+import com.kedada.backend.event.dto.EventVisibilityRequest;
 import com.kedada.backend.event.service.EventService;
 import com.kedada.backend.metric.service.EventMetricService;
 import jakarta.validation.Valid;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -51,8 +53,8 @@ public class EventController {
     }
 
     @GetMapping("/{id}")
-    EventResponse get(@PathVariable UUID id) {
-        return eventService.get(id);
+    EventResponse get(@AuthenticationPrincipal AuthenticatedUser user, @PathVariable UUID id) {
+        return eventService.get(id, requesterId(user));
     }
 
     @GetMapping
@@ -64,14 +66,20 @@ public class EventController {
             @RequestParam(required = false) @Min(1) Integer priority,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime fromDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime toDate,
-            @ParameterObject @PageableDefault(size = 20, sort = "createdAt") Pageable pageable
+            @ParameterObject @PageableDefault(size = 20, sort = "createdAt") Pageable pageable,
+            @AuthenticationPrincipal AuthenticatedUser user
     ) {
-        return eventService.search(q, categoryId, minPrice, maxPrice, priority, fromDate, toDate, pageable);
+        return eventService.search(q, categoryId, minPrice, maxPrice, priority, fromDate, toDate, requesterId(user), pageable);
     }
 
     @PutMapping("/{id}")
     EventResponse update(@AuthenticationPrincipal AuthenticatedUser user, @PathVariable UUID id, @Valid @RequestBody EventUpdateRequest request) {
         return eventService.update(user.id(), id, request);
+    }
+
+    @PatchMapping("/{id}/visibility")
+    EventResponse updateVisibility(@PathVariable UUID id, @Valid @RequestBody EventVisibilityRequest request) {
+        return eventService.updateVisibility(id, request.visibleOnWebsite());
     }
 
     @DeleteMapping("/{id}")
@@ -90,5 +98,9 @@ public class EventController {
     ResponseEntity<Void> share(@PathVariable UUID id, @RequestParam @NotNull UUID ownerId) {
         metricService.registerShare(id, ownerId);
         return ResponseEntity.noContent().build();
+    }
+
+    private UUID requesterId(AuthenticatedUser user) {
+        return user == null ? null : user.id();
     }
 }

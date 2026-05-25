@@ -39,17 +39,19 @@ public class UrlService {
     }
 
     @Transactional(readOnly = true)
-    public UrlResponse get(UUID id) {
-        return mapper.toResponse(find(id));
+    public UrlResponse get(UUID id, UUID requesterId) {
+        Url url = find(id);
+        assertEventAccessible(url, requesterId);
+        return mapper.toResponse(url);
     }
 
     @Transactional(readOnly = true)
-    public Page<UrlResponse> list(UUID eventId, Pageable pageable) {
+    public Page<UrlResponse> list(UUID eventId, UUID requesterId, Pageable pageable) {
         if (eventId == null) {
-            return repository.findByDeletedFalse(pageable).map(mapper::toResponse);
+            return repository.findAccessible(requesterId, pageable).map(mapper::toResponse);
         }
 
-        eventService.findActive(eventId);
+        eventService.findAccessible(eventId, requesterId);
         return repository.findByEvent_IdAndDeletedFalse(eventId, pageable).map(mapper::toResponse);
     }
 
@@ -76,6 +78,12 @@ public class UrlService {
 
     private Event resolveEvent(UUID ownerId, UUID eventId) {
         return eventId == null ? null : eventService.findOwnedActive(ownerId, eventId);
+    }
+
+    private void assertEventAccessible(Url url, UUID requesterId) {
+        if (url.getEvent() != null) {
+            eventService.findAccessible(url.getEvent().getId(), requesterId);
+        }
     }
 
     private void assertOwner(UUID actualOwnerId, UUID expectedOwnerId) {

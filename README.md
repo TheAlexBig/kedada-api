@@ -25,6 +25,7 @@ The structure follows domain-based layers:
 - `EventMetricDaily` uses a composite key `(event_id, day)` for daily metrics per event.
 - View and share increments use `insert ... on conflict do update`, which is safe under concurrent access in PostgreSQL.
 - Events, categories, and URLs use soft delete with `is_deleted` and `deleted_at`; normal listings do not return deleted records.
+- Events can be removed from the public website with `visibleOnWebsite: false`; authenticated panel users can manage visibility while full edits remain owner-only.
 - A category cannot be soft-deleted while an active event references it.
 - Text search uses `search_vector` with a trigger and GIN index.
 

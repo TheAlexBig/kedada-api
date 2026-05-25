@@ -40,6 +40,9 @@ public class Event {
     @Column(precision = 10, scale = 2)
     private BigDecimal price;
 
+    @Column(name = "visible_on_website", nullable = false)
+    private boolean visibleOnWebsite = true;
+
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "event_categories",
@@ -105,6 +108,14 @@ public class Event {
 
     public void setPrice(BigDecimal price) {
         this.price = price;
+    }
+
+    public boolean isVisibleOnWebsite() {
+        return visibleOnWebsite;
+    }
+
+    public void setVisibleOnWebsite(boolean visibleOnWebsite) {
+        this.visibleOnWebsite = visibleOnWebsite;
     }
 
     public Set<Category> getCategories() {

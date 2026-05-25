@@ -26,27 +26,27 @@ public class EventMetricService {
 
     @Transactional
     public void registerView(UUID eventId, UUID ownerId) {
-        eventService.findActive(eventId);
+        eventService.findVisibleOnWebsite(eventId);
         repository.incrementViews(eventId, LocalDate.now(), ownerId);
     }
 
     @Transactional
     public void registerShare(UUID eventId, UUID ownerId) {
-        eventService.findActive(eventId);
+        eventService.findVisibleOnWebsite(eventId);
         repository.incrementShares(eventId, LocalDate.now(), ownerId);
     }
 
     @Transactional(readOnly = true)
-    public List<EventMetricDailyResponse> daily(UUID eventId) {
-        eventService.findActive(eventId);
+    public List<EventMetricDailyResponse> daily(UUID eventId, UUID requesterId) {
+        eventService.findAccessible(eventId, requesterId);
         return repository.findByIdEventIdOrderByIdDayDesc(eventId).stream()
                 .map(this::toResponse)
                 .toList();
     }
 
     @Transactional(readOnly = true)
-    public EventMetricSummaryResponse summary(UUID eventId) {
-        eventService.findActive(eventId);
+    public EventMetricSummaryResponse summary(UUID eventId, UUID requesterId) {
+        eventService.findAccessible(eventId, requesterId);
         EventMetricSummaryProjection projection = repository.summarize(eventId);
         return new EventMetricSummaryResponse(eventId, projection.getViews(), projection.getShares());
     }

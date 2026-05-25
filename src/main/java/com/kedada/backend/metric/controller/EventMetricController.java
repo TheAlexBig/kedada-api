@@ -1,5 +1,6 @@
 package com.kedada.backend.metric.controller;
 
+import com.kedada.backend.auth.security.AuthenticatedUser;
 import com.kedada.backend.metric.dto.EventMetricDailyResponse;
 import com.kedada.backend.metric.dto.EventMetricSummaryResponse;
 import com.kedada.backend.metric.service.EventMetricService;
@@ -7,6 +8,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
 import java.util.List;
 import java.util.UUID;
@@ -22,12 +24,16 @@ public class EventMetricController {
     }
 
     @GetMapping("/daily")
-    List<EventMetricDailyResponse> daily(@PathVariable UUID eventId) {
-        return service.daily(eventId);
+    List<EventMetricDailyResponse> daily(@AuthenticationPrincipal AuthenticatedUser user, @PathVariable UUID eventId) {
+        return service.daily(eventId, requesterId(user));
     }
 
     @GetMapping("/summary")
-    EventMetricSummaryResponse summary(@PathVariable UUID eventId) {
-        return service.summary(eventId);
+    EventMetricSummaryResponse summary(@AuthenticationPrincipal AuthenticatedUser user, @PathVariable UUID eventId) {
+        return service.summary(eventId, requesterId(user));
+    }
+
+    private UUID requesterId(AuthenticatedUser user) {
+        return user == null ? null : user.id();
     }
 }
